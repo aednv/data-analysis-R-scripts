@@ -1,7 +1,7 @@
 # Carpel Area Calculations. Input from Mask-RCNN .csv files, output ggplot graphs.
 # Amber 9/9/21, comments added 10/19/21, 5/6/22
 
-# set up
+# set up libraries
 
 library(tidyverse)
 library(ggbeeswarm)
@@ -15,6 +15,8 @@ setwd("")
 
 # Step 1: Create empty data frame to store all data. *Only do this at the beginning.*
 all_data <- data.frame()
+x <- data.frame()
+y <- data.frame()
 
 # Step 2: Start importing from csv files. Each csv file should have measurements from only one genotype, either control or treatment, and planting time.
 #   Combinations of genotypes, treatments, and timings in one csv file will not be imported correctly.
@@ -22,9 +24,9 @@ all_data <- data.frame()
 #   If you are just comparing genotypes, leave the extra code below commented out.
 #   If you are comparing genotype by treatment by planting time, uncomment the extra lines. Check that your csv imports are correct. (2 genotypes * 2 treatment conditions * 2 planting times = minimum 6 separate csv files)
 
-subset_genotype <- "A10" #set genotype name, for example A10 or gt1
+subset_genotype <- "ra3_N" #set genotype name, for example A10 or gt1
 
-x <- read_csv("carpel_area_results_a10_1.csv", col_names=TRUE) # set genotype, control (no treatment) csv import file name. Example: carpel_area_late_gt1ra3_no_treatment.csv
+x <- read_csv("carpel_area_results_ra3_N.csv", col_names=TRUE) # set genotype, control (no treatment) csv import file name. Example: carpel_area_late_gt1ra3_no_treatment.csv
 #y <- read_csv("", col_names=TRUE) # set genotype, treatment csv import file name. Example: carpel_area_late_gt1ra3_defoliated.csv
 
 x$genotype <- subset_genotype #make a new column with genotype
@@ -78,18 +80,21 @@ write_csv(all_data, "all_carpel_area_data.csv")
 
 
 
-
 # ~~~~~~~~~~~~~~~~~ Generating ggplot graphs from ML carpel area data ~~~~~~~~~~~~~~~~~~~~~~~~
 
 
-setwd("")
 x <- read_csv("all_carpel_area_data.csv") #read in the previously generated csv from Step 6
 
 # ~~~ Generating scan y-Position number, angle position, and plant number for each carpel ~~~
 
-# Step 1: cleaning image_ids for gt1-P and weirdly named triple so all formats match. There should be 5 characters before the "~".
-#x$image_id <- str_replace(x$image_id, "p_test", "")
-#x$image_id <- str_replace(x$image_id, "_tassel", "")
+# Step 1: cleaning image_ids so all formats match. There should be 5 characters before the "~".
+#x$image_id <- str_replace(x$image_id, "p_test", "") #for maize 2021 dataset
+#x$image_id <- str_replace(x$image_id, "_tassel", "") #for maize 2021 dataset
+x$image_id <- str_replace(x$image_id, "ra3_ds", "r3D") #for setaria 2022 dataset
+x$image_id <- str_replace(x$image_id, "ra3_N", "r3N") #for setaria 2022 dataset
+x$image_id <- str_replace(x$image_id, "ra3_normal", "r3N") #for setaria 2022 dataset
+x$image_id <- str_replace(x$image_id, "ra3_n", "r3N") #for setaria 2022 dataset
+x$image_id <- str_replace(x$image_id, "ra3", "r3N") #for setaria 2022 dataset
 
 # Step 2: find string positions in image_id that correspond to scan Y-position, scan angle position, and plant number. Save values in new columns 'y-pos', 'angle', and 'plant_num'.
 x$y_pos_start <- str_locate(x$image_id, "~") # set position 0 at "~"
@@ -104,13 +109,14 @@ print(x$angle) # do levels look correct? For my data I have images from angles 0
 x$plant_num <- str_sub(x$image_id, 1, 6) #plant number should be extracted in the format 'XXX-XX', row number dash plant number
 x$plant_num <- as.factor(str_replace(x$plant_num, "~", "")) #remove ~ for single digit plant numbers and convert to factor for graphing
 print(x$plant_num) #do plant numbers look correct? both single and double digits
+print(levels(x$plant_num))
 
-x$rownumb <- as.factor(str_sub(x$plant_num, 0, 3))
-print(x$rownumb)
+#x$rownumb <- as.factor(str_sub(x$plant_num, 0, 3)) #this only works if the row number is included in csv name
+#print(x$rownumb)
 
-# Step 3: add ggplot functions
+# Step 3: add ggplot functions (using ggpubr for this now)
 
-#funtion to add counts and mean above boxplot from https://gscheithauer.medium.com/how-to-add-number-of-observations-to-a-ggplot2-boxplot-b22710f7ef80
+#function to add counts and mean above boxplot from https://gscheithauer.medium.com/how-to-add-number-of-observations-to-a-ggplot2-boxplot-b22710f7ef80
 #stat_box_data <- function(y, upper_limit = max(x$carpel_area) * 1.15) {
 #  return( 
 #    data.frame(
@@ -140,9 +146,9 @@ print(x$rownumb)
 # 1. view all genotype data points
 x %>% ggplot(aes(x = genotype, y = carpel_area, color = genotype)) + 
   geom_boxplot(outlier.shape = NA) + 
-  geom_quasirandom( size = .01, alpha=.35, width = .7) + 
-  stat_summary(fun.data = stat_box_data, geom = "text", hjust = 0.5, vjust = 0.9) + 
-  labs(y = "carpel area (pixels squared, 1 pixel = 30.3 um)")
+  geom_quasirandom( size = 1, alpha=.35, width = .7) + 
+  #stat_summary(fun.data = stat_box_data, geom = "text", hjust = 0.5, vjust = 0.9) + 
+  labs(y = "carpel area (pixels squared, 1 pixel = x um)") # for maize images, 1 pixel = 30.3 um
 
 ggsave("all_ML_carpel_area_data.jpg", width = 17, height = 10, units = "in")
 ggsave("all_ML_carpel_area_data.pdf", width = 17, height = 10, units = "in")
@@ -251,11 +257,11 @@ ggsave("gt1P_gt1ra3_triple_no_treatment_ML_carpel_area_data.pdf", height = 7, wi
 
 # 7. just gt1-P, gt1ra3, and tb1gt1ra3 no treatment faceted by angle
 
-x %>% filter(genotype == "gt1-P" | genotype == "gt1ra3" | genotype == "tb1gt1ra3") %>% filter(treatment == "no_treatment") %>% ggplot(aes(x = angle, y = carpel_area, color = angle)) + 
+x %>% filter(treatment == "no_treatment") %>% ggplot(aes(x = angle, y = carpel_area, color = angle)) + 
   geom_boxplot(outlier.shape = NA) + 
-  geom_quasirandom( size = .01, alpha=.35, width = .4) + 
-  stat_summary(fun.data = stat_box_data, geom = "text", hjust = 0.5, vjust = 0.9) + 
-  stat_compare_means(method="t.test", cex=2.3) + 
+  geom_quasirandom( size = 1, alpha=.35, width = .4) + 
+  #stat_summary(fun.data = stat_box_data, geom = "text", hjust = 0.5, vjust = 0.9) + 
+  #stat_compare_means(method="t.test", cex=2.3) + 
   labs(y = "carpel area (pixels squared, 1 pixel = 30.3 um)") +
   facet_wrap(~genotype)
 
