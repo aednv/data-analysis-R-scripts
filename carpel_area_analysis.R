@@ -1,5 +1,5 @@
 # Carpel Area Calculations. Input from Mask-RCNN .csv files, output ggplot graphs.
-# Amber 9/9/21, comments added 10/19/21
+# Amber 9/9/21, comments added 10/19/21, 5/6/22
 
 # set up
 
@@ -16,58 +16,65 @@ setwd("")
 # Step 1: Create empty data frame to store all data. *Only do this at the beginning.*
 all_data <- data.frame()
 
-# Step 2: Start importing
-subset_genotype <- "gt1ra3" #set genotype name
+# Step 2: Start importing from csv files. Each csv file should have measurements from only one genotype, either control or treatment, and planting time.
+#   Combinations of genotypes, treatments, and timings in one csv file will not be imported correctly.
+#   However, if you have multiple csvs for the same condition, for example- measurements for one genotype/one treatment/one planting split over 3 csvs, that is fine. Just import them one by one.
+#   If you are just comparing genotypes, leave the extra code below commented out.
+#   If you are comparing genotype by treatment by planting time, uncomment the extra lines. Check that your csv imports are correct. (2 genotypes * 2 treatment conditions * 2 planting times = minimum 6 separate csv files)
 
-x <- read_csv("carpel_area_late_gt1ra3_no_treatment.csv", col_names=TRUE) # genotype - late planting - no treatment
-y <- read_csv("carpel_area_late_gt1ra3_defoliated.csv", col_names=TRUE) # genotype - late planting - defoliated
+subset_genotype <- "A10" #set genotype name, for example A10 or gt1
 
-x$genotype <- subset_genotype
-y$genotype <- subset_genotype
+x <- read_csv("carpel_area_results_a10_1.csv", col_names=TRUE) # set genotype, control (no treatment) csv import file name. Example: carpel_area_late_gt1ra3_no_treatment.csv
+#y <- read_csv("", col_names=TRUE) # set genotype, treatment csv import file name. Example: carpel_area_late_gt1ra3_defoliated.csv
 
-x$treatment <- "no_treatment"
-y$treatment <- "defoliated"
+x$genotype <- subset_genotype #make a new column with genotype
+#y$genotype <- subset_genotype
 
-#extra code below is for calculating the average number of carpels detected per image for each subset and adding it to the df
+x$treatment <- "no_treatment" #make a new column for treatment
+#y$treatment <- "defoliated"
+
+
+# Step 3: early or late planting? skip if only 1 planting
+
+#~~~~ if early run this chunk ~~~~
+#subset_genotype_early_nt <- str_c("early_", subset_genotype, "_nt")
+#subset_genotype_early_def <- str_c("early_", subset_genotype, "_def")
+
+#x$planting <- "early"
+#y$planting <- "early"
+
+#assign(subset_genotype_early_nt, x) #make fresh df to store
+#assign(subset_genotype_early_def, y) #make fresh df to store
+
+#~~~~ if late run this chunk ~~~~
+#subset_genotype_late_nt <- str_c("late_", subset_genotype, "_nt")
+#subset_genotype_late_def <- str_c("late_", subset_genotype, "_def")
+
+#x$planting <- "late"
+#y$planting <- "late"
+
+#assign(subset_genotype_late_nt, x) #make fresh df to store
+#assign(subset_genotype_late_def, y) #make fresh df to store
+
+#Step 3.5, optional: Calculate the average number of carpels detected per image for each set and add it to the dataframe
 
 #x$image_total <- 178 #no treatment image total - change this number depending on your dataset
-#y$image_total <- 220 #defoliated image total - change this number depending on your dataset
+#y$image_total <- 220 #treatment image total - change this number depending on your dataset
 #x$total_carpels <- nrow(x)
 #y$total_carpels <- nrow(y)
 #x$average_carpels_per_image <- x$total_carpels / x$image_total
 #y$average_carpels_per_image <- y$total_carpels / y$image_total
 
-# Step 3: early or late planting?
-
-#~~~~ if early run this chunk ~~~~
-subset_genotype_early_nt <- str_c("early_", subset_genotype, "_nt")
-subset_genotype_early_def <- str_c("early_", subset_genotype, "_def")
-
-x$planting <- "early"
-y$planting <- "early"
-
-assign(subset_genotype_early_nt, x) #make fresh df to store
-assign(subset_genotype_early_def, y) #make fresh df to store
-
-#~~~~ if late run this chunk ~~~~
-subset_genotype_late_nt <- str_c("late_", subset_genotype, "_nt")
-subset_genotype_late_def <- str_c("late_", subset_genotype, "_def")
-
-x$planting <- "late"
-y$planting <- "late"
-
-assign(subset_genotype_late_nt, x) #make fresh df to store
-assign(subset_genotype_late_def, y) #make fresh df to store
-
 # Step 4: Combine new data frames with old one
 
 all_data <- rbind(all_data, x, y)
 
-# Step 5: Repeat from *Step 2* with the next genotype
+# Step 5: Repeat from *Step 2* with the next genotype or next csv
 
-# Step 6: Save your completed data frame
+# Step 6: Once all csvs are imported, save your completed data frame as a new csv
 
-write_csv(all_data, "all_ML_carpel_area_data_10_19_2021.csv")
+write_csv(all_data, "all_carpel_area_data.csv")
+
 
 
 
@@ -76,14 +83,13 @@ write_csv(all_data, "all_ML_carpel_area_data_10_19_2021.csv")
 
 
 setwd("")
-x <- read_csv("all_ML_carpel_area_data_10_19_2021.csv") #read in the previously generated csv from Step 6
-#x <- read_csv("all_data.csv")
+x <- read_csv("all_carpel_area_data.csv") #read in the previously generated csv from Step 6
 
 # ~~~ Generating scan y-Position number, angle position, and plant number for each carpel ~~~
 
 # Step 1: cleaning image_ids for gt1-P and weirdly named triple so all formats match. There should be 5 characters before the "~".
-x$image_id <- str_replace(x$image_id, "p_test", "")
-x$image_id <- str_replace(x$image_id, "_tassel", "")
+#x$image_id <- str_replace(x$image_id, "p_test", "")
+#x$image_id <- str_replace(x$image_id, "_tassel", "")
 
 # Step 2: find string positions in image_id that correspond to scan Y-position, scan angle position, and plant number. Save values in new columns 'y-pos', 'angle', and 'plant_num'.
 x$y_pos_start <- str_locate(x$image_id, "~") # set position 0 at "~"
@@ -105,29 +111,29 @@ print(x$rownumb)
 # Step 3: add ggplot functions
 
 #funtion to add counts and mean above boxplot from https://gscheithauer.medium.com/how-to-add-number-of-observations-to-a-ggplot2-boxplot-b22710f7ef80
-stat_box_data <- function(y, upper_limit = max(x$carpel_area) * 1.15) {
-  return( 
-    data.frame(
-      y = 0.95 * upper_limit,
-      label = paste('count =', length(y), '\n',
-                    'mean =', round(mean(y), 1), '\n')
-    )
-  )
-}
+#stat_box_data <- function(y, upper_limit = max(x$carpel_area) * 1.15) {
+#  return( 
+#    data.frame(
+#      y = 0.95 * upper_limit,
+#      label = paste('count =', length(y), '\n',
+#                    'mean =', round(mean(y), 1), '\n')
+#    )
+#  )
+#}
 
 # Step 4: ggplot graphs
 
 #guide:
 # 1. view all genotype data points
-# 2. all genotype data points split by treatment (gt1ra3 and gt1 are the only genotypes I have both kinds of data for)
-# 3. just gt1ra3 split by treatment and faceted by planting
-# 4. just gt1ra3 split by treatment and faceted by row number
-# 5. gt1ra3 single rows split by treatment and faceted by image angle
-# 6. just gt1-P, gt1ra3, and tb1gt1ra3 no treatment
-# 7. just gt1-P, gt1ra3, and tb1gt1ra3 no treatment faceted by angle
-# 8. gt1ra3 filtered plant rows for only quality image data, comparing treatments
-# 9. gt1ra3 filtered plant rows for only quality image data, comparing treatments by row number
-# 10. gt1ra3 filtered plant rows for only quality image data, gt1ra3 single rows split by treatment and faceted by image angle
+# 2. all genotype data points split by treatment
+# 3. single genotype split by treatment and faceted by planting
+# 4. single genotype split by treatment and faceted by row number
+# 5. single genotype single rows split by treatment and faceted by image angle
+# 6. all genotypes no treatment
+# 7. all genotypes no treatment faceted by angle
+# 8. single genotype filtered for only quality image data, comparing treatments
+# 9. single genotype filtered for only quality image data, comparing treatments by row number
+# 10. single genotype filtered for only quality image data, single rows split by treatment and faceted by image angle
 # 11. graphing handtraced vs all ML data
 
 
